@@ -4,6 +4,8 @@ from dash.dependencies import Input, Output, State
 import pandas as pd
 import os
 from datetime import datetime
+import dash_bootstrap_components as dbc
+
 
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import sessionmaker, relationship, subqueryload
@@ -101,41 +103,60 @@ df_dictionary = pd.DataFrame(data)
 
 ###     APP DASH LAYOUT     ###
 
-app = dash.Dash(__name__)
-app.layout = html.Div([
-    html.H1("Información de Marketing"),
-    dash_table.DataTable(
-        id='merged-marketing-table',
-        columns=[
-            {"name": "Name", "id": "name"},
-            {"name": "Classe", "id": "classe"},
-            {"name": "Subclasse", "id": "subclass"},
-            {"name": "Description", "id": "description"},
-            {"name": "Aspecto_Productivo", "id": "aspecto_productivo"}
-        ],
-        data=df_dictionary.to_dict('records')
-    ),
-    html.Label("Ingrese el contenido CSV:"),
-    dcc.Textarea(
-        id='csv-input',
-        placeholder='Ingrese el contenido CSV aquí...',
-        style={'width': '100%', 'height': 200},
-    ),
-    html.Label("Mensaje de Commit:"),
-    dcc.Input(id='commit-message', type='text', placeholder='Describa los cambios...'),
-    html.Button('Commit', id='commit-button'),
-    html.Label("Crear Nueva Rama:"),
-    dcc.Input(id='new-branch-name', type='text', placeholder='Nombre de la nueva rama...'),
-    html.Button('Crear Rama', id='create-branch-button'),
-    html.Label("Seleccionar Rama:"),
-    dcc.Dropdown(id='branch-selector', options=[{'label': 'main', 'value': 'main'}]),
-    html.Label("Historial de Commits:"),
-    dash_table.DataTable(id='commits-table'),
-    html.Label("Restaurar Versión:"),
-    dcc.Dropdown(id='version-selector', options=[]),
-    html.Button('Restaurar Versión', id='restore-version-button'),
-    html.Hr(),
+app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
+
+# the style arguments for the sidebar. We use position:fixed and a fixed width
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 0,
+    "left": 0,
+    "bottom": 0,
+    "width": "16rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
+
+# the styles for the main content position it to the right of the sidebar and
+# add some padding.
+CONTENT_STYLE = {
+    "margin-left": "18rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
+
+sidebar = html.Div(
+    [
+        html.H2("Hola, Ivan", className="display-4"),
+        html.Hr(),
+        html.P(
+            "Acción hoy, éxito mañana.", className="lead"
+        ),
+        dbc.Nav(
+            [
+                dbc.NavLink("Diario", href="/", active="exact"),
+                dbc.NavLink("Diccionario", href="/dictionary", active="exact"),
+                dbc.NavLink("Libro de Notas", href="/notebook", active="exact"),
+            ],
+            vertical=True,
+            pills=True,
+        ),
+    ],
+    style=SIDEBAR_STYLE,
+)
+
+content = html.Div(id="page-content", style=CONTENT_STYLE)
+
+app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
+
+status_save = html.Div([
+    dbc.Spinner(color="primary", type="grow"),
+    html.H3("Guardado")
+])
+
+daily_view = html.Div([
+    status_save,
     html.H1("Registro de Sprint de Trabajo"),
+    html.P("Los sprint le dan contexto a las notas, por eso tienen que ser estrictos en cuanto a los registros de las notas considerando el planteo del contexto. Llegado el caso de una excepcion, ser detallado en el registro de la nota y si es recurrente en el tema, planteo de agregar cambios en sprint o crear otra instancia"),
     dash_table.DataTable(
         id='sprint-table',
         columns=[
@@ -146,10 +167,42 @@ app.layout = html.Div([
         ],
         data=pd.DataFrame(sprint_data).to_dict('records'),
         editable=True,
-        row_deletable=True
+        row_deletable=True,
+        style_table={'padding-bottom': '50px', "height": "60vh", "overflowY": "auto"},
     ),
-    html.Button('Agregar Registro de Sprint de Trabajo', id='add-sprint-button', n_clicks=0),
-    html.Hr(),
+    dbc.InputGroup(
+        [
+            dbc.Input(id="input-group-button-input", placeholder="Escribe tu Nota..."),
+            dbc.Button("Guardar", id="input-group-button", n_clicks=0),
+        ]
+    ),
+    dcc.Store(id='isSaved', data={'status': False})
+])
+
+dictionary_view = html.Div([
+    status_save,
+    dbc.Card(
+        [
+            dbc.CardHeader(
+                dbc.Tabs(
+                    [
+                        dbc.Tab(label="Ver Tabla", tab_id="tab-1"),
+                        dbc.Tab(label="Ver Arbol", tab_id="tab-2"),
+                        dbc.Tab(label="Commits", tab_id="tab-3"),
+                        dbc.Tab(label="Branchs", tab_id="tab-4"),
+                    ],
+                    id="card-tabs",
+                    active_tab="tab-1",
+                )
+            ),
+            dbc.CardBody(html.P(id="card-content", className="card-text"), style={"height": "80vh", "overflowY": "auto"}),
+        ]
+    ),
+    html.P("El diccionario es importante para poder entender descriptivamnete y categoricamente areas del conocimiento con atributos en sus ramas finales. Con este recurso se puede lograr tokenizar por entidades un texto y asi desglozar en la informacion manteniendo el contexto de la misma."),
+])
+
+notebook_view = html.Div([
+    status_save,
     html.H1("Registro de Notas"),
     dash_table.DataTable(
         id='notes-table',
@@ -161,7 +214,94 @@ app.layout = html.Div([
         data=pd.DataFrame(note_data).to_dict('records'),
         editable=True,
         row_deletable=True
+    )
+])
+
+domain_section = html.Div([
+    html.H1("Información de Marketing"),
+    dash_table.DataTable(
+        id='merged-marketing-table',
+        columns=[
+            {"name": "Name", "id": "name"},
+            {"name": "Classe", "id": "classe"},
+            {"name": "Subclasse", "id": "subclass"},
+            {"name": "Description", "id": "description"},
+            {"name": "Aspecto_Productivo", "id": "aspecto_productivo"}
+        ],
+        data=df_dictionary.to_dict('records'),
+        style_table={'padding-bottom': '50px', 'height': '50vh'}
     ),
+    dbc.Textarea(className="mb-3", placeholder="Ingresa el CSV Aqui"),
+    html.Div([
+                dbc.Button("Siguiente Paso Ante de Unir", color="primary", id="open-xl", n_clicks=0),
+            ], className="d-grid gap-2 col-6 mx-auto"),
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Cada cosa en su lugar")),
+            dbc.ModalBody("An extra large modal."),
+            html.Div([
+                html.Label("Elegi una Rama: "),
+                dbc.Select(
+                    id="select",
+                    options=[
+                        {"label": "Marketing", "value": "1"},
+                        {"label": "Programacion", "value": "2"},
+                        {"label": "Disabled option", "value": "3", "disabled": True},
+                    ],
+                ),
+            ]),
+        ],
+        id="modal-xl",
+        size="xl",
+        is_open=False,
+    ),
+])
+
+@app.callback(
+    Output("modal-xl", "is_open"),
+    Input("open-xl", "n_clicks"),
+    State("modal-xl", "is_open"),
+)
+def toggle_modal(n1, is_open):
+    if n1:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("card-content", "children"), 
+    [Input("card-tabs", "active_tab")]
+)
+def tab_content(active_tab):
+    if active_tab == "tab-1":
+        return domain_section
+    elif active_tab == "tab-2":
+        return html.P("Contenido de la Tab 2")
+    else:
+        return "No hay contenido disponible"
+
+
+@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
+def render_page_content(pathname):
+    if pathname == "/":
+        return daily_view
+    elif pathname == "/dictionary":
+        return dictionary_view
+    elif pathname == "/notebook":
+        return notebook_view
+    # If the user tries to reach a different page, return a 404 message
+    return html.Div(
+        [
+            html.H1("404: Not found", className="text-danger"),
+            html.Hr(),
+            html.P(f"The pathname {pathname} was not recognised..."),
+        ],
+        className="p-3 bg-light rounded-3",
+    )
+
+"""
+app.layout = html.Div([
+    
+    
     html.Button('Agregar Nota', id='add-note-button', n_clicks=0),
     html.Button('Guardar', id='save-button', n_clicks=0),
     dcc.Store(id='prev-sprint-data', data=pd.DataFrame(sprint_data).to_dict('records'),),
@@ -277,7 +417,7 @@ def manage_data(add_sprint_clicks, add_note_clicks, save_clicks, sprint_data, no
             print("Error al guardar datos en la base de datos:", e)
 
     return [sprint_data.to_dict('records'), note_data.to_dict('records'), prev_sprint_data.to_dict('records'), prev_note_data.to_dict('records')]
-
+"""
 
 if __name__ == '__main__':
     app.run_server(debug=True)
