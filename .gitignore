@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches
+.cache/
+*.log
+
+# Virtual Environments
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Dependency directories
+lib/
+libs/
+Library/
+bin/
+build/
+dist/
+
+# Python distribution / packaging
+*.egg-info/
+*.egg
+*.eggs/
+*.dist-info/
+*.dist/
+
+# Environment
+.env
+
+# Misc
+.DS_Store

@@ -1,30 +1,64 @@
 from dash import html
 import dash_bootstrap_components as dbc
-from ..Components.header_status_save import status_save  # Asegúrate de que la ruta de importación sea correcta
+from Components.header_status_save import StatusSave  # Asegúrate de que la ruta de importación sea correcta
+from dash import Dash, html, dcc, Input, Output, State, callback, exceptions, ctx
+from dash.exceptions import PreventUpdate
 
-def create_dictionary_view():
-    return html.Div([
-        status_save.create(),
-        dbc.Card(
-            [
-                dbc.CardHeader(
-                    dbc.Tabs(
-                        [
-                            dbc.Tab(label="Ver Tabla", tab_id="tab-1"),
-                            dbc.Tab(label="Ver Arbol", tab_id="tab-2"),
-                            dbc.Tab(label="Versiones", tab_id="tab-3"),
-                        ],
-                        id="card-tabs",
-                        active_tab="tab-1",
-                    )
-                ),
-                dbc.CardBody(html.P(id="card-content", className="card-text"), style={"height": "80vh", "overflowY": "auto"}),
-            ]
-        ),
-        html.P("El diccionario es importante para poder entender descriptivamente y categoricamente áreas del conocimiento con atributos en sus ramas finales. Con este recurso se puede lograr tokenizar por entidades un texto y así desglosar en la información manteniendo el contexto de la misma."),
-    ])
+import dash_bootstrap_components as dbc
+import pandas as pd
+from Components.Dictionary.domain_datatable import DomainDatatable
+from Components.Dictionary.domain_sunburst_chart import DictionaryChart
+from Components.Dictionary.domain_actions_row import DomainActionRow
 
-dbc.Textarea(className="mb-3", placeholder="Ingresa el CSV Aqui"),
-            html.Div([
-                        dbc.Button("Guarda los Cambios", color="primary", id="open-xl", n_clicks=0),
-                    ], className="d-grid gap-2 col-6 mx-auto"),
+class DictionaryView:
+    def __init__(self, app):
+        self.dictionary_table_component = DomainDatatable(app)
+        self.action_row_component = DomainActionRow(app)
+        self.dictionary_chart_component = DictionaryChart(app)
+        self.app = app
+        @self.app.callback(
+            Output('card-content', 'children'),
+            [Input("card-tabs", "active_tab")]
+        )
+        def render_datatable(active_tab):
+            #Falta el if que selecciona el contenido segun active_tab
+            if active_tab == "tab-1":
+                template = html.Div([
+                    html.Div([
+                            self.action_row_component.render(),
+                            self.dictionary_table_component.render()
+                        ])
+                ])
+            elif active_tab == "tab-2":
+                template = html.Div([
+                    html.Div([
+                        self.dictionary_chart_component.render()
+                    ], id='Container'),
+                ])
+            return template 
+            
+
+    def render(self):
+        layout = html.Div([
+            StatusSave.create(),
+            dbc.Card(
+                [
+                    dbc.CardHeader(
+                        dbc.Tabs(
+                            [
+                                dbc.Tab(label="Ver Tabla", tab_id="tab-1"),
+                                dbc.Tab(label="Ver Arbol", tab_id="tab-2"),
+                                #dbc.Tab(label="Versiones", tab_id="tab-3" ),
+                            ],
+                            id="card-tabs",
+                            active_tab="tab-1",
+                        )
+                    ),
+                    dbc.CardBody(id="card-content"),
+                ]
+            )
+        ])
+
+        return layout
+            
+    

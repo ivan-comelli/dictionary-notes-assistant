@@ -1,0 +1,121 @@
+
+"""
+app.layout = html.Div([
+    
+    
+    html.Button('Agregar Nota', id='add-note-button', n_clicks=0),
+    html.Button('Guardar', id='save-button', n_clicks=0),
+    dcc.Store(id='prev-sprint-data', data=pd.DataFrame(sprint_data).to_dict('records'),),
+    dcc.Store(id='prev-note-data', data=pd.DataFrame(note_data).to_dict('records'),),
+    html.Div(id='dummy-div', style={'display': 'none'})
+])
+
+###     CALLBACK MANAGEDATA     ###
+
+@app.callback(
+    [Output('sprint-table', 'data'), Output('notes-table', 'data'), Output('prev-sprint-data', 'data'), Output('prev-note-data', 'data')],
+    [Input('add-sprint-button', 'n_clicks'), Input('add-note-button', 'n_clicks'),
+     Input('save-button', 'n_clicks')],
+    [State('sprint-table', 'data'), State('notes-table', 'data'),
+     State('prev-sprint-data', 'data'), State('prev-note-data', 'data')]
+)
+def manage_data(add_sprint_clicks, add_note_clicks, save_clicks, sprint_data, note_data, prev_sprint_data, prev_note_data):
+    ctx = dash.callback_context
+
+    ###     CONVERSIÓN A DATAFRAMES     ###
+    sprint_data = pd.DataFrame(sprint_data)
+    note_data = pd.DataFrame(note_data)
+    prev_sprint_data = pd.DataFrame(prev_sprint_data)
+    prev_note_data = pd.DataFrame(prev_note_data)
+
+    ###     UPDATE ALL DATA     ###
+    
+    if not ctx.triggered:
+        try:
+            sprint_data = pd.read_sql(session.query(SprintWork).statement, session.bind)
+            note_data = pd.read_sql(session.query(Note).statement, session.bind)
+        except Exception as e:
+            print("Error al inicializar los datos de la base de datos:", e)
+        return [sprint_data.to_dict('records'), note_data.to_dict('records'), sprint_data.to_dict('records'), note_data.to_dict('records')]
+            
+    ###     CHECK DELETED ROWS      ###
+    
+    deleted_sprint_rows = []
+    deleted_note_rows = []
+    for index, row in prev_sprint_data.iterrows():
+        if row['id'] not in sprint_data['id'].values:
+            deleted_sprint_rows.append(row.to_dict())
+    for index, row in prev_note_data.iterrows():
+        if row['id'] not in note_data['id'].values:
+            deleted_note_rows.append(row.to_dict())
+    prev_sprint_data = sprint_data.copy()
+    prev_note_data = note_data.copy()
+    prev_sprint_data.reset_index(drop=True, inplace=True)
+    prev_note_data.reset_index(drop=True, inplace=True)
+
+    ###     SERIAL TRIGGERS      ###
+
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    ###     ADDSPRINT       ###
+
+    if triggered_id == 'add-sprint-button' and add_sprint_clicks > 0:
+        try:
+            new_sprint_row = pd.DataFrame({'id': [''], 'sprint': [''], 'tarea': [''], 'descripcion': ['']})
+            sprint_data = pd.concat([sprint_data, new_sprint_row], ignore_index=True)
+        except Exception as e:
+            print("Error al agregar fila de sprint:", e)
+
+    ###     ADDNOTE     ###
+
+    elif triggered_id == 'add-note-button' and add_note_clicks > 0:
+        try:
+            new_note_row = pd.DataFrame({'id': [''], 'fecha': [''], 'nota': ['']})
+            note_data = pd.concat([note_data, new_note_row], ignore_index=True)
+        except Exception as e:
+            print("Error al agregar fila de nota:", e)
+
+    ###     SAVE        ###
+
+    elif triggered_id == 'save-button' and save_clicks > 0:
+        try:
+            for row in deleted_sprint_rows:
+                sprint_id = row['id']
+                session.query(SprintWork).filter(SprintWork.id == sprint_id).delete()
+            for row in deleted_note_rows:
+                note_id = row['id']
+                session.query(Note).filter(Note.id == note_id).delete()
+
+            for index, row in sprint_data.iterrows():
+                if row['id'] != '': 
+                    session.query(SprintWork).filter(SprintWork.id == row['id']).update(row)
+                else: 
+                    row['id'] = None
+                    register = SprintWork(**row)
+                    session.add(register)
+                    session.flush()
+                    session.refresh(register)
+                    sprint_data.at[index, 'id'] = register.id
+
+            for index, row in note_data.iterrows():
+                if row['id'] != '':
+                    session.query(Note).filter(Note.id == row['id']).update({'nota': row['nota']})
+                else: 
+                    row['id'] = None
+                    row['fecha'] = datetime.now()
+                    register = Note(**row)
+                    session.add(register)
+                    session.flush()
+                    session.refresh(register)
+                    note_data.at[index, 'id'] = register.id
+
+            session.commit()
+
+            deleted_sprint_rows = [{'id': '', 'sprint': '', 'tarea': '', 'descripcion': ''}]
+            deleted_note_rows = [{'id': '', 'fecha': '', 'nota': ''}]
+
+        except Exception as e:
+            print("Error al guardar datos en la base de datos:", e)
+
+    return [sprint_data.to_dict('records'), note_data.to_dict('records'), prev_sprint_data.to_dict('records'), prev_note_data.to_dict('records')]
+"""

@@ -28,7 +28,11 @@ class Domain(Base):
 
     id = Column(Integer, primary_key=True)
     node = Column(String)
-    classe = relationship("domain", back_populates="domain") #Este podria ser el relation con su mismo tipo padre
+    classe_id = Column(Integer, ForeignKey('domains.id'))  # La columna que almacena el id de la clase padre
+
+    # Definir la relación 'classe'
+    classe = relationship("Domain", remote_side=[id], backref='parent')  # Relación consigo misma
+
     description = Column(String)
     level = Column(Integer)
     aspects = relationship("Aspect",
@@ -50,8 +54,8 @@ class SprintWork(Base):
 
     id = Column(Integer, primary_key=True)
     sprint = Column(String)
-    tarea = Column(String)
-    descripcion = Column(String)
+    task = Column(String)
+    description = Column(String)
 
 class Note(Base):
     __tablename__ = 'notes'
